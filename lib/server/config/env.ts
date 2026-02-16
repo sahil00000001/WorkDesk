@@ -4,12 +4,12 @@ export const config = {
   apiVersion: process.env.API_VERSION || 'v1',
 
   // Database
-  databaseUrl: process.env.DATABASE_URL!,
+  databaseUrl: process.env.DATABASE_URL || '',
 
   // JWT
-  jwtSecret: process.env.JWT_SECRET!,
+  jwtSecret: process.env.JWT_SECRET || 'build-time-placeholder-secret',
   jwtAccessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET!,
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'build-time-placeholder-refresh-secret',
   jwtRefreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
 
   // OTP
@@ -21,10 +21,10 @@ export const config = {
     host: process.env.SMTP_HOST || 'smtp.office365.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: process.env.SMTP_SECURE === 'true',
-    user: process.env.SMTP_USER!,
-    password: process.env.SMTP_PASSWORD!,
+    user: process.env.SMTP_USER || 'placeholder@example.com',
+    password: process.env.SMTP_PASSWORD || 'placeholder-password',
     fromName: process.env.SMTP_FROM_NAME || 'Employee Portal',
-    fromEmail: process.env.SMTP_FROM_EMAIL!,
+    fromEmail: process.env.SMTP_FROM_EMAIL || 'placeholder@example.com',
   },
 
   // Rate Limiting
