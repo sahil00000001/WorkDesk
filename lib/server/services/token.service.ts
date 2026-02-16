@@ -11,14 +11,14 @@ interface TokenPayload {
 export class TokenService {
   static generateAccessToken(payload: TokenPayload): string {
     return jwt.sign(payload, config.jwtSecret, {
-      expiresIn: config.jwtAccessExpiry as string | number,
-    })
+      expiresIn: config.jwtAccessExpiry,
+    } as SignOptions)
   }
 
   static generateRefreshToken(payload: TokenPayload): string {
     return jwt.sign(payload, config.jwtRefreshSecret, {
-      expiresIn: config.jwtRefreshExpiry as string | number,
-    })
+      expiresIn: config.jwtRefreshExpiry,
+    } as SignOptions)
   }
 
   static verifyAccessToken(token: string): TokenPayload {
