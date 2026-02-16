@@ -3,7 +3,7 @@ import config from '../config/env'
 import logger from '../utils/logger'
 
 export class EmailService {
-  private static transporter = nodemailer.createTransporter({
+  private static transporter = nodemailer.createTransport({
     host: config.smtp.host,
     port: config.smtp.port,
     secure: config.smtp.secure,
