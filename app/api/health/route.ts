@@ -4,8 +4,9 @@ import prisma from '@/lib/server/config/database'
 
 export async function GET(request: NextRequest) {
   try {
-    // Test database connection
-    await prisma.$queryRaw`SELECT 1`
+    // Test database connection (MongoDB compatible)
+    await prisma.$connect()
+    await prisma.$disconnect()
 
     return sendSuccess(
       {
