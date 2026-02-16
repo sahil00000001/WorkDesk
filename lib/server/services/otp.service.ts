@@ -33,7 +33,8 @@ export class OTPService {
     await prisma.oTPVerification.create({
       data: {
         email,
-        otp: hashedOTP,
+        otpCode: hashedOTP,
+        purpose: 'LOGIN',
         expiresAt,
         attempts: 0,
       },
@@ -62,7 +63,7 @@ export class OTPService {
     }
 
     // Verify OTP
-    const isValid = await this.verifyOTP(otp, otpRecord.otp)
+    const isValid = await this.verifyOTP(otp, otpRecord.otpCode)
 
     if (!isValid) {
       // Increment attempts
