@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import jwt, { SignOptions } from 'jsonwebtoken'
 import config from '../config/env'
 
 interface TokenPayload {
@@ -10,15 +10,17 @@ interface TokenPayload {
 
 export class TokenService {
   static generateAccessToken(payload: TokenPayload): string {
-    return jwt.sign(payload, config.jwtSecret, {
+    const options: SignOptions = {
       expiresIn: config.jwtAccessExpiry,
-    })
+    }
+    return jwt.sign(payload, config.jwtSecret, options)
   }
 
   static generateRefreshToken(payload: TokenPayload): string {
-    return jwt.sign(payload, config.jwtRefreshSecret, {
+    const options: SignOptions = {
       expiresIn: config.jwtRefreshExpiry,
-    })
+    }
+    return jwt.sign(payload, config.jwtRefreshSecret, options)
   }
 
   static verifyAccessToken(token: string): TokenPayload {
