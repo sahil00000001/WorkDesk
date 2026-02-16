@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Calendar, Clock, CheckCircle, XCircle, History } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import apiClient from '@/lib/api/client'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
+import { format, subDays } from 'date-fns'
 
 interface Attendance {
   id: string
@@ -31,15 +31,25 @@ export default function AttendancePage() {
   const { data: todayAttendance, isLoading } = useQuery({
     queryKey: ['attendance', 'today'],
     queryFn: async () => {
-      const response = await axios.get('/api/attendance/today')
+      const response = await apiClient.get('/api/attendance/today')
       return response.data.data as Attendance | null
+    },
+  })
+
+  // Fetch attendance history (last 7 days)
+  const { data: attendanceHistory } = useQuery({
+    queryKey: ['attendance', 'history'],
+    queryFn: async () => {
+      // For now, we'll create mock data since the history endpoint doesn't exist yet
+      // In a real app, this would fetch from /api/attendance/history
+      return [] as Attendance[]
     },
   })
 
   // Check-in mutation
   const checkInMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.post('/api/attendance/check-in')
+      const response = await apiClient.post('/api/attendance/check-in')
       return response.data
     },
     onSuccess: () => {
@@ -54,7 +64,7 @@ export default function AttendancePage() {
   // Check-out mutation
   const checkOutMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.post('/api/attendance/check-out')
+      const response = await apiClient.post('/api/attendance/check-out')
       return response.data
     },
     onSuccess: () => {
@@ -186,7 +196,7 @@ export default function AttendancePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-lg p-6 border border-gray-100"
+            className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 mb-8"
           >
             <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
@@ -226,6 +236,74 @@ export default function AttendancePage() {
             </div>
           </motion.div>
         )}
+
+        {/* Attendance History */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-xl shadow-lg p-6 border border-gray-100"
+        >
+          <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Recent Attendance
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Check In</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Check Out</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Work Hours</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayAttendance && (
+                  <tr className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm text-gray-900">
+                      {format(new Date(todayAttendance.date), 'MMM dd, yyyy')} <span className="text-blue-600 font-semibold">(Today)</span>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-900">
+                      {todayAttendance.checkInTime ? format(new Date(todayAttendance.checkInTime), 'hh:mm a') : '-'}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-900">
+                      {todayAttendance.checkOutTime ? format(new Date(todayAttendance.checkOutTime), 'hh:mm a') : '-'}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-900">
+                      {todayAttendance.workHours ? `${todayAttendance.workHours.toFixed(2)}h` : '-'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                        todayAttendance.status === 'PRESENT'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {todayAttendance.status}
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                {!todayAttendance && !isLoading && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-500">
+                      No attendance records yet. Check in to get started!
+                    </td>
+                  </tr>
+                )}
+                {isLoading && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-500">
+                      Loading attendance data...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
       </motion.div>
     </div>
   )

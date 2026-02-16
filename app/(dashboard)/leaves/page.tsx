@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import axios from 'axios'
+import apiClient from '@/lib/api/client'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useForm } from 'react-hook-form'
@@ -66,7 +66,7 @@ export default function LeavesPage() {
   const { data: leaveTypes } = useQuery({
     queryKey: ['leave-types'],
     queryFn: async () => {
-      const response = await axios.get('/api/leave-types')
+      const response = await apiClient.get('/api/leave-types')
       return response.data.data as LeaveType[]
     },
   })
@@ -75,7 +75,7 @@ export default function LeavesPage() {
   const { data: leaves, isLoading } = useQuery({
     queryKey: ['leaves'],
     queryFn: async () => {
-      const response = await axios.get('/api/leaves')
+      const response = await apiClient.get('/api/leaves')
       return response.data.data as Leave[]
     },
   })
@@ -83,7 +83,7 @@ export default function LeavesPage() {
   // Apply leave mutation
   const applyLeaveMutation = useMutation({
     mutationFn: async (data: LeaveFormData) => {
-      const response = await axios.post('/api/leaves', data)
+      const response = await apiClient.post('/api/leaves', data)
       return response.data
     },
     onSuccess: () => {
