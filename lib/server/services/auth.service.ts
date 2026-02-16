@@ -17,7 +17,7 @@ export class AuthService {
           email: true,
           firstName: true,
           lastName: true,
-          isActive: true,
+          status: true,
         },
       })
 
@@ -25,7 +25,7 @@ export class AuthService {
         throw new Error('User not found')
       }
 
-      if (!user.isActive) {
+      if (user.status !== 'ACTIVE') {
         throw new Error('Account is inactive. Please contact your administrator.')
       }
 
@@ -70,12 +70,12 @@ export class AuthService {
               name: true,
             },
           },
-          profilePicture: true,
-          isActive: true,
+          profilePhotoUrl: true,
+          status: true,
         },
       })
 
-      if (!user || !user.isActive) {
+      if (!user || user.status !== 'ACTIVE') {
         throw new Error('User not found or inactive')
       }
 
@@ -119,7 +119,7 @@ export class AuthService {
           role: user.role,
           designation: user.designation,
           department: user.department,
-          profilePicture: user.profilePicture,
+          profilePhotoUrl: user.profilePhotoUrl,
         },
         accessToken,
         refreshToken,
@@ -200,15 +200,15 @@ export class AuthService {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { password: true },
+        select: { passwordHash: true },
       })
 
-      if (!user || !user.password) {
+      if (!user || !user.passwordHash) {
         throw new Error('User not found')
       }
 
       // Verify old password
-      const isValid = await bcrypt.compare(oldPassword, user.password)
+      const isValid = await bcrypt.compare(oldPassword, user.passwordHash)
       if (!isValid) {
         throw new Error('Current password is incorrect')
       }
@@ -219,7 +219,7 @@ export class AuthService {
       // Update password
       await prisma.user.update({
         where: { id: userId },
-        data: { password: hashedPassword },
+        data: { passwordHash: hashedPassword },
       })
 
       logger.info(`Password changed for user ${userId}`)
