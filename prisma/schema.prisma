@@ -1,0 +1,451 @@
+// Prisma Schema for Employee Management Portal - MongoDB
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// ENUMS
+// =============================================
+
+enum UserRole {
+  ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKEND
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  WITHDRAWN
+}
+
+enum NotificationType {
+  LEAVE_REQUEST
+  LEAVE_APPROVAL
+  ATTENDANCE
+  ANNOUNCEMENT
+  POLICY
+  NEWS
+  BIRTHDAY
+  ANNIVERSARY
+  SYSTEM
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum OTPPurpose {
+  LOGIN
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+  TWO_FA
+}
+
+enum HolidayType {
+  PUBLIC
+  OPTIONAL
+  RESTRICTED
+  COMPANY
+}
+
+// =============================================
+// CORE MODELS
+// =============================================
+
+model Department {
+  id                  String      @id @default(auto()) @map("_id") @db.ObjectId
+  name                String      @unique
+  description         String?
+  headId              String?     @map("head_id") @db.ObjectId
+  parentDepartmentId  String?     @map("parent_department_id") @db.ObjectId
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  users               User[]      @relation("UserDepartment")
+  parentDepartment    Department? @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subDepartments      Department[] @relation("DepartmentHierarchy")
+
+  @@map("departments")
+}
+
+model User {
+  id                String              @id @default(auto()) @map("_id") @db.ObjectId
+  employeeId        String              @unique @map("employee_id")
+  email             String              @unique
+  firstName         String              @map("first_name")
+  lastName          String              @map("last_name")
+  passwordHash      String              @map("password_hash")
+  role              UserRole
+  departmentId      String?             @map("department_id") @db.ObjectId
+  designation       String?
+  managerId         String?             @map("manager_id") @db.ObjectId
+  joiningDate       DateTime            @map("joining_date")
+  profilePhotoUrl   String?             @map("profile_photo_url")
+  phoneNumber       String?             @map("phone_number")
+  address           String?
+  dateOfBirth       DateTime?           @map("date_of_birth")
+  status            UserStatus          @default(ACTIVE)
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  lastLogin         DateTime?           @map("last_login")
+
+  department        Department?         @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  manager           User?               @relation("UserManager", fields: [managerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subordinates      User[]              @relation("UserManager")
+
+  attendance        Attendance[]
+  leaveRequests     LeaveRequest[]      @relation("UserLeaveRequests")
+  approvedLeaves    LeaveRequest[]      @relation("LeaveApprover")
+  leaveBalances     LeaveBalance[]
+  notifications     Notification[]
+  refreshTokens     RefreshToken[]
+  sessions          Session[]
+  passwordResets    PasswordResetToken[]
+  publishedPolicies Policy[]
+  publishedAnnouncements Announcement[]
+  publishedNews     News[]
+  policyAcknowledgments PolicyAcknowledgment[]
+  auditLogs         AuditLog[]
+
+  @@map("users")
+}
+
+// =============================================
+// AUTHENTICATION MODELS
+// =============================================
+
+model OTPVerification {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?     @map("user_id") @db.ObjectId
+  email       String
+  otpCode     String      @map("otp_code")
+  purpose     OTPPurpose
+  isVerified  Boolean     @default(false) @map("is_verified")
+  expiresAt   DateTime    @map("expires_at")
+  attempts    Int         @default(0)
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@map("otp_verifications")
+}
+
+model RefreshToken {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @map("user_id") @db.ObjectId
+  token       String    @unique
+  deviceInfo  String?   @map("device_info")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  expiresAt   DateTime  @map("expires_at")
+  isRevoked   Boolean   @default(false) @map("is_revoked")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @map("user_id") @db.ObjectId
+  token       String    @unique
+  expiresAt   DateTime  @map("expires_at")
+  isUsed      Boolean   @default(false) @map("is_used")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model Session {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @map("user_id") @db.ObjectId
+  sessionToken  String    @unique @map("session_token")
+  ipAddress     String?   @map("ip_address")
+  userAgent     String?   @map("user_agent")
+  expiresAt     DateTime  @map("expires_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastActivity  DateTime  @default(now()) @map("last_activity")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// =============================================
+// ATTENDANCE MODELS
+// =============================================
+
+model Attendance {
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String           @map("user_id") @db.ObjectId
+  date              DateTime
+  checkInTime       DateTime?        @map("check_in_time")
+  checkOutTime      DateTime?        @map("check_out_time")
+  status            AttendanceStatus @default(PRESENT)
+  workHours         Float?           @map("work_hours")
+  checkInLocation   Json?            @map("check_in_location")
+  checkOutLocation  Json?            @map("check_out_location")
+  notes             String?
+  ipAddress         String?          @map("ip_address")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("attendance")
+}
+
+// =============================================
+// LEAVE MANAGEMENT MODELS
+// =============================================
+
+model LeaveType {
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  name                  String    @unique
+  code                  String    @unique
+  description           String?
+  defaultAnnualQuota    Int       @default(0) @map("default_annual_quota")
+  isPaid                Boolean   @default(true) @map("is_paid")
+  requiresApproval      Boolean   @default(true) @map("requires_approval")
+  maxConsecutiveDays    Int?      @map("max_consecutive_days")
+  minDaysNotice         Int       @default(0) @map("min_days_notice")
+  isActive              Boolean   @default(true) @map("is_active")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  leaveRequests         LeaveRequest[]
+  leaveBalances         LeaveBalance[]
+
+  @@map("leave_types")
+}
+
+model LeaveBalance {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @map("user_id") @db.ObjectId
+  leaveTypeId     String    @map("leave_type_id") @db.ObjectId
+  year            Int
+  totalAllocated  Float     @default(0) @map("total_allocated")
+  used            Float     @default(0)
+  carryForward    Float     @default(0) @map("carry_forward")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType       LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leaveTypeId, year])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String              @map("user_id") @db.ObjectId
+  leaveTypeId     String              @map("leave_type_id") @db.ObjectId
+  startDate       DateTime            @map("start_date")
+  endDate         DateTime            @map("end_date")
+  totalDays       Float               @map("total_days")
+  reason          String
+  status          LeaveRequestStatus  @default(PENDING)
+  approverId      String?             @map("approver_id") @db.ObjectId
+  approverComments String?            @map("approver_comments")
+  approvedAt      DateTime?           @map("approved_at")
+  attachmentUrl   String?             @map("attachment_url")
+  isHalfDay       Boolean             @default(false) @map("is_half_day")
+  halfDayType     String?             @map("half_day_type")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  user            User                @relation("UserLeaveRequests", fields: [userId], references: [id], onDelete: Cascade)
+  leaveType       LeaveType           @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  approver        User?               @relation("LeaveApprover", fields: [approverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("leave_requests")
+}
+
+// =============================================
+// POLICIES & CONTENT MODELS
+// =============================================
+
+model Policy {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  title                   String
+  content                 String
+  category                String?
+  version                 String    @default("1.0")
+  isActive                Boolean   @default(true) @map("is_active")
+  publishedDate           DateTime? @map("published_date")
+  publishedBy             String?   @map("published_by") @db.ObjectId
+  effectiveDate           DateTime? @map("effective_date")
+  expiryDate              DateTime? @map("expiry_date")
+  acknowledgmentRequired  Boolean   @default(false) @map("acknowledgment_required")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  publisher               User?     @relation(fields: [publishedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  attachments             PolicyAttachment[]
+  acknowledgments         PolicyAcknowledgment[]
+
+  @@map("policies")
+}
+
+model PolicyAttachment {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  policyId    String    @map("policy_id") @db.ObjectId
+  fileName    String    @map("file_name")
+  fileUrl     String    @map("file_url")
+  fileSize    Int?      @map("file_size")
+  fileType    String?   @map("file_type")
+  uploadedAt  DateTime  @default(now()) @map("uploaded_at")
+
+  policy      Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@map("policy_attachments")
+}
+
+model PolicyAcknowledgment {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  policyId        String    @map("policy_id") @db.ObjectId
+  userId          String    @map("user_id") @db.ObjectId
+  acknowledgedAt  DateTime  @default(now()) @map("acknowledged_at")
+  ipAddress       String?   @map("ip_address")
+
+  policy          Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, userId])
+  @@map("policy_acknowledgments")
+}
+
+model Announcement {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  content         String
+  priority        Priority  @default(MEDIUM)
+  publishedDate   DateTime? @map("published_date")
+  publishedBy     String?   @map("published_by") @db.ObjectId
+  targetAudience  Json?     @map("target_audience")
+  isActive        Boolean   @default(true) @map("is_active")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  publisher       User?     @relation(fields: [publishedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("announcements")
+}
+
+model News {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  title           String
+  content         String
+  coverImageUrl   String?   @map("cover_image_url")
+  category        String?
+  publishedDate   DateTime? @map("published_date")
+  publishedBy     String?   @map("published_by") @db.ObjectId
+  isFeatured      Boolean   @default(false) @map("is_featured")
+  viewCount       Int       @default(0) @map("view_count")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  publisher       User?     @relation(fields: [publishedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("news")
+}
+
+// =============================================
+// HOLIDAY MODEL
+// =============================================
+
+model Holiday {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  date        DateTime
+  type        HolidayType
+  description String?
+  location    String?
+  year        Int
+  isRecurring Boolean     @default(false) @map("is_recurring")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@unique([date, location])
+  @@map("holidays")
+}
+
+// =============================================
+// NOTIFICATION MODEL
+// =============================================
+
+model Notification {
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String            @map("user_id") @db.ObjectId
+  type          NotificationType
+  title         String
+  message       String
+  priority      Priority          @default(MEDIUM)
+  isRead        Boolean           @default(false) @map("is_read")
+  readAt        DateTime?         @map("read_at")
+  referenceId   String?           @map("reference_id") @db.ObjectId
+  referenceType String?           @map("reference_type")
+  actionUrl     String?           @map("action_url")
+  metadata      Json?
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// =============================================
+// AUDIT LOG MODEL
+// =============================================
+
+model AuditLog {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?   @map("user_id") @db.ObjectId
+  action      String
+  entityType  String    @map("entity_type")
+  entityId    String?   @map("entity_id") @db.ObjectId
+  oldValues   Json?     @map("old_values")
+  newValues   Json?     @map("new_values")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User?     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("audit_logs")
+}
