@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
 
     // Calculate work hours
     const checkOutTime = new Date()
-    const workHours = (checkOutTime.getTime() - attendance.checkInTime.getTime()) / (1000 * 60 * 60)
+    const workHours = attendance.checkInTime
+      ? (checkOutTime.getTime() - attendance.checkInTime.getTime()) / (1000 * 60 * 60)
+      : 0
 
     // Update attendance record
     const updatedAttendance = await prisma.attendance.update({
