@@ -1,13 +1,4 @@
 {
   "buildCommand": "npx prisma generate && npm run build",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"],
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "JWT_SECRET": "@jwt_secret",
-    "JWT_REFRESH_SECRET": "@jwt_refresh_secret",
-    "SMTP_USER": "@smtp_user",
-    "SMTP_PASSWORD": "@smtp_password"
-  }
+  "framework": "nextjs"
 }
