@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         leaveTypeId,
         startDate: start,
         endDate: end,
-        numberOfDays: days,
+        totalDays: days,
         reason,
         status: 'PENDING',
       },
