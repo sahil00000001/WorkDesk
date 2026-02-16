@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Poppins } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import { Providers } from './providers'
 import './globals.css'
 
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
       <body className="min-h-screen bg-gray-50 font-sans antialiased">
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   )
