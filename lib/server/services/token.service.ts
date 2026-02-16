@@ -10,17 +10,15 @@ interface TokenPayload {
 
 export class TokenService {
   static generateAccessToken(payload: TokenPayload): string {
-    const options: SignOptions = {
-      expiresIn: config.jwtAccessExpiry,
-    }
-    return jwt.sign(payload, config.jwtSecret, options)
+    return jwt.sign(payload, config.jwtSecret, {
+      expiresIn: config.jwtAccessExpiry as string | number,
+    })
   }
 
   static generateRefreshToken(payload: TokenPayload): string {
-    const options: SignOptions = {
-      expiresIn: config.jwtRefreshExpiry,
-    }
-    return jwt.sign(payload, config.jwtRefreshSecret, options)
+    return jwt.sign(payload, config.jwtRefreshSecret, {
+      expiresIn: config.jwtRefreshExpiry as string | number,
+    })
   }
 
   static verifyAccessToken(token: string): TokenPayload {
