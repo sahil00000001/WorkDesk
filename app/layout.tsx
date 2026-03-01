@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Poppins } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ClerkProvider } from '@clerk/nextjs'
 import { Providers } from './providers'
 import './globals.css'
 
@@ -22,11 +23,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
-      <body className="min-h-screen bg-gray-50 font-sans antialiased">
-        <Providers>{children}</Providers>
-        <Analytics />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
+        <body className="min-h-screen bg-gray-50 font-sans antialiased">
+          <Providers>{children}</Providers>
+          <Analytics />
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

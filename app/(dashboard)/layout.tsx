@@ -8,23 +8,19 @@
  *
  *  Auth guard
  *  ──────────
- *  On mount the layout checks isAuthenticated from authStore.
- *  If the user is not logged in they are immediately redirected to /login.
- *  This prevents any dashboard page from rendering unauthenticated content.
+ *  Clerk middleware (`middleware.ts`) protects all dashboard routes at the
+ *  edge — unauthenticated requests never reach this component.
+ *  A client-side fallback also redirects to /login if the session is absent.
  *
- *  Sidebar navigation
- *  ──────────────────
- *  navItems array drives all sidebar links.
- *  The active route is highlighted with a framer-motion shared layout animation
- *  (layoutId="activeTab") for a smooth sliding indicator.
+ *  User info
+ *  ─────────
+ *  `useUser()` from Clerk provides firstName, lastName, and email — no
+ *  backend call required for basic identity display.
  *
  *  Logout flow
  *  ───────────
- *  1. Calls POST /api/auth/logout with the stored refreshToken to invalidate
- *     it server-side (prevents reuse even if the token is stolen).
- *  2. Clears authStore (removes user, token, refreshToken from localStorage).
- *  3. Redirects to /login.
- *  API failure is silently caught — local logout still proceeds regardless.
+ *  `signOut()` from `useClerk()` invalidates the Clerk session on both
+ *  client and Clerk's servers, then redirects to /login.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -32,6 +28,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUser, useClerk } from '@clerk/nextjs'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -48,9 +45,7 @@ import {
   LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import { useAuthStore } from '@/lib/store/authStore'
 import { Button } from '@/components/ui/button'
-import apiClient from '@/lib/api/client'
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
@@ -70,31 +65,28 @@ export default function DashboardLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { isAuthenticated, user, logout } = useAuthStore()
+  const { user, isLoaded, isSignedIn } = useUser()
+  const { signOut } = useClerk()
 
+  // Client-side fallback guard (Clerk middleware handles the edge case)
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isLoaded && !isSignedIn) {
       router.push('/login')
     }
-  }, [isAuthenticated, router])
+  }, [isLoaded, isSignedIn, router])
 
   const handleLogout = async () => {
-    const { refreshToken } = useAuthStore.getState()
-    try {
-      if (refreshToken) {
-        await apiClient.post('/api/auth/logout', { refreshToken })
-      }
-    } catch {
-      // Proceed with local logout regardless
-    } finally {
-      logout()
-      router.push('/login')
-    }
+    await signOut()
+    router.push('/login')
   }
 
-  if (!isAuthenticated) {
+  if (!isLoaded || !isSignedIn) {
     return null
   }
+
+  const firstName = user?.firstName ?? ''
+  const lastName = user?.lastName ?? ''
+  const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -144,15 +136,16 @@ export default function DashboardLayout({
         {/* User section */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 p-4">
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600 font-medium">
-              {user?.firstName[0]}
-              {user?.lastName[0]}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600 font-medium text-sm">
+              {initials}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                {user?.firstName} {user?.lastName}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {firstName} {lastName}
               </p>
-              <p className="text-xs text-gray-500">{user?.role}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {user?.primaryEmailAddress?.emailAddress}
+              </p>
             </div>
           </div>
           <Button
@@ -174,7 +167,7 @@ export default function DashboardLayout({
           <div className="flex h-16 items-center justify-between px-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                Welcome back, {user?.firstName}!
+                Welcome back, {firstName}!
               </h2>
               <p className="text-sm text-gray-600">
                 {new Date().toLocaleDateString('en-US', {

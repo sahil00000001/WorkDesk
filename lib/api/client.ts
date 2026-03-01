@@ -7,20 +7,24 @@
  *  There are no local Next.js API routes — every request goes directly to
  *  the hosted backend at https://zoho-backend-rho.vercel.app
  *
- *  Request pipeline
- *  ────────────────
- *  1. Attach the stored JWT access token as `Authorization: Bearer <token>`
+ *  Authentication
+ *  ──────────────
+ *  Auth is now handled by Clerk. Before each request the interceptor reads
+ *  the active Clerk session token from `window.Clerk.session.getToken()` and
+ *  attaches it as `Authorization: Bearer <token>`.
  *
- *  Response pipeline
+ *  Clerk automatically rotates the short-lived session token on expiry, so
+ *  no manual refresh logic is needed here.
+ *
+ *  Note for backend
  *  ─────────────────
- *  1. On 401  →  attempt a silent token rotation via POST /api/auth/refresh
- *  2. If rotation succeeds  →  update the store and replay the original request
- *  3. If rotation fails     →  clear auth state and redirect to /login
+ *  The backend must verify incoming JWTs against Clerk's JWKS endpoint:
+ *    https://clerk.com/docs/backend-requests/handling/manual-jwt
+ *  Replace the existing `verifyJWT` middleware with Clerk's JWT verification.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import axios from 'axios'
-import { useAuthStore } from '../store/authStore'
 
 const BASE_URL = 'https://zoho-backend-rho.vercel.app'
 
@@ -31,53 +35,22 @@ const apiClient = axios.create({
   },
 })
 
-// Request interceptor: Attach access token
+// Request interceptor: Attach Clerk session token as Bearer
 apiClient.interceptors.request.use(
-  (config) => {
-    const token = useAuthStore.getState().token
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+  async (config) => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).Clerk?.session) {
+        const token = await (window as any).Clerk.session.getToken()
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
+        }
+      }
+    } catch {
+      // Clerk session not ready — proceed without token
     }
     return config
   },
   (error) => Promise.reject(error)
-)
-
-// Response interceptor: Try refresh on 401, then logout
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-
-      const refreshToken = useAuthStore.getState().refreshToken
-
-      if (refreshToken) {
-        try {
-          const res = await axios.post(`${BASE_URL}/api/auth/refresh`, {
-            refreshToken,
-          })
-
-          const { accessToken, refreshToken: newRefreshToken } = res.data.data
-          useAuthStore.getState().setTokens(accessToken, newRefreshToken)
-
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`
-          return apiClient(originalRequest)
-        } catch {
-          // Refresh failed — log out
-        }
-      }
-
-      useAuthStore.getState().logout()
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login'
-      }
-    }
-
-    return Promise.reject(error)
-  }
 )
 
 export default apiClient

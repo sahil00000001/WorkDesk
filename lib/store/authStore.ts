@@ -3,34 +3,23 @@
  *  AUTH STORE  ·  WorkDesk Employee Portal
  * ─────────────────────────────────────────────────────────────────────────────
  *
- *  Global authentication state managed with Zustand + localStorage persistence.
- *  This is the single source of truth for the logged-in user across the app.
+ *  Authentication state (session, tokens, identity) is now fully managed by
+ *  Clerk (`@clerk/nextjs`). Use Clerk hooks in components:
  *
- *  State shape
- *  ───────────
- *  user          — Full user object returned by POST /api/auth/verify-otp
- *  token         — Short-lived JWT access token  (expires in 15 min)
- *  refreshToken  — Long-lived refresh token       (expires in 7 days)
- *  isAuthenticated — Derived boolean, true only when all three are present
+ *    useUser()    — access user profile (firstName, lastName, email)
+ *    useAuth()    — access session state (isSignedIn, getToken)
+ *    useClerk()   — signOut() and other Clerk actions
  *
- *  Actions
- *  ───────
- *  login(user, token, refreshToken)  — Called after successful OTP verification
- *  logout()                          — Clears all state; redirected to /login
- *  setTokens(token, refreshToken)    — Called by apiClient on silent token refresh
- *  updateUser(partial)               — Merges partial user data into store
- *
- *  Persistence
- *  ───────────
- *  State is persisted to localStorage under the key "auth-storage".
- *  On page reload the user stays logged in until their refresh token expires.
+ *  This store is kept as a lightweight cache for backend-specific employee
+ *  data that Clerk does not track — such as employeeId, role, and department.
+ *  It is populated after the first successful call to GET /api/auth/me.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export interface User {
+export interface EmployeeProfile {
   id: string
   email: string
   firstName: string
@@ -48,40 +37,21 @@ export interface User {
   }
 }
 
-interface AuthState {
-  user: User | null
-  token: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  login: (user: User, token: string, refreshToken: string) => void
-  logout: () => void
-  setTokens: (token: string, refreshToken: string) => void
-  updateUser: (user: Partial<User>) => void
+interface EmployeeState {
+  profile: EmployeeProfile | null
+  setProfile: (profile: EmployeeProfile | null) => void
+  clearProfile: () => void
 }
 
-export const useAuthStore = create<AuthState>()(
+export const useEmployeeStore = create<EmployeeState>()(
   persist(
     (set) => ({
-      user: null,
-      token: null,
-      refreshToken: null,
-      isAuthenticated: false,
-      login: (user, token, refreshToken) => {
-        set({ user, token, refreshToken, isAuthenticated: true })
-      },
-      logout: () => {
-        set({ user: null, token: null, refreshToken: null, isAuthenticated: false })
-      },
-      setTokens: (token, refreshToken) => {
-        set({ token, refreshToken })
-      },
-      updateUser: (userData) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...userData } : null,
-        })),
+      profile: null,
+      setProfile: (profile) => set({ profile }),
+      clearProfile: () => set({ profile: null }),
     }),
     {
-      name: 'auth-storage',
+      name: 'employee-storage',
     }
   )
 )

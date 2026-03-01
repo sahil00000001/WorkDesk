@@ -3,27 +3,23 @@
  *  LOGIN PAGE  ·  WorkDesk Employee Portal
  * ─────────────────────────────────────────────────────────────────────────────
  *
- *  Passwordless OTP authentication — 2-step flow:
+ *  Passwordless OTP authentication powered by Clerk — 2-step flow:
  *
  *  Step 1 — Email
  *    User enters their work email address.
- *    Frontend calls POST /api/auth/login  →  backend generates a 6-digit OTP,
- *    stores it in the DB with a 10-minute expiry, and emails it to the user.
- *    The backend always returns 200 regardless of whether the email is
- *    registered (prevents user enumeration attacks).
+ *    Clerk's `signIn.create({ strategy: 'email_code', identifier })` triggers
+ *    Clerk's own email delivery — no SMTP configuration required.
  *
  *  Step 2 — OTP
- *    User enters the 6-digit code from their email.
- *    Frontend calls POST /api/auth/verify-otp  →  on success the backend
- *    returns { user, accessToken, refreshToken }.
- *    Tokens and user are stored in authStore (persisted to localStorage).
- *    User is redirected to /dashboard.
+ *    User enters the 6-digit code delivered by Clerk.
+ *    `signIn.attemptFirstFactor({ strategy: 'email_code', code })` verifies it.
+ *    On `status === 'complete'`, the session is activated and the user is
+ *    redirected to /dashboard.
  *
- *  Error handling
- *  ──────────────
- *  HTTP 500  →  "Email service unavailable" (SMTP misconfigured on backend)
- *  HTTP 401  →  OTP is wrong, expired, or already used
- *  Network   →  Generic fallback message
+ *  Why Clerk instead of custom OTP?
+ *  ─────────────────────────────────
+ *  Clerk handles email delivery, rate limiting, code expiry, and session
+ *  management out of the box — no SMTP server required on our side.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -31,72 +27,88 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSignIn } from '@clerk/nextjs'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, KeyRound, ArrowRight, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/lib/store/authStore'
-import apiClient from '@/lib/api/client'
 
 type Step = 'email' | 'otp'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuthStore()
+  const { isLoaded, signIn, setActive } = useSignIn()
 
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // ── Step 1: Send email OTP via Clerk ─────────────────────────────────────
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isLoaded) return
     setIsLoading(true)
 
     try {
-      await apiClient.post('/api/auth/login', { email })
+      await signIn.create({
+        strategy: 'email_code',
+        identifier: email,
+      })
       toast.success('OTP sent! Check your email.')
       setStep('otp')
     } catch (error: any) {
-      const status = error.response?.status
       const message =
-        status === 500
-          ? 'Email service is unavailable. Contact your administrator.'
-          : error.response?.data?.error?.message || 'Failed to send OTP. Try again.'
+        error.errors?.[0]?.longMessage ||
+        error.errors?.[0]?.message ||
+        'Failed to send OTP. Try again.'
       toast.error(message)
     } finally {
       setIsLoading(false)
     }
   }
 
+  // ── Step 2: Verify OTP and activate session ───────────────────────────────
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isLoaded) return
     setIsLoading(true)
 
     try {
-      const response = await apiClient.post('/api/auth/verify-otp', { email, otp })
-      const { user, accessToken, refreshToken } = response.data.data
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'email_code',
+        code: otp,
+      })
 
-      login(user, accessToken, refreshToken)
-      toast.success('Login successful!')
-      router.push('/dashboard')
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId })
+        toast.success('Login successful!')
+        router.push('/dashboard')
+      }
     } catch (error: any) {
       const message =
-        error.response?.data?.error?.message || 'Invalid or expired OTP.'
+        error.errors?.[0]?.longMessage ||
+        error.errors?.[0]?.message ||
+        'Invalid or expired OTP.'
       toast.error(message)
     } finally {
       setIsLoading(false)
     }
   }
 
+  // ── Resend OTP ────────────────────────────────────────────────────────────
   const handleResendOtp = async () => {
+    if (!isLoaded) return
     setIsLoading(true)
     try {
-      await apiClient.post('/api/auth/login', { email })
+      await signIn.create({
+        strategy: 'email_code',
+        identifier: email,
+      })
       toast.success('New OTP sent!')
-    } catch (error: any) {
+    } catch {
       toast.error('Failed to resend OTP.')
     } finally {
       setIsLoading(false)
@@ -159,7 +171,8 @@ export default function LoginPage() {
                 Enter your OTP
               </h2>
               <p className="mb-6 text-sm text-gray-500">
-                We sent a 6-digit code to <span className="font-medium text-gray-700">{email}</span>.
+                We sent a 6-digit code to{' '}
+                <span className="font-medium text-gray-700">{email}</span>.
                 It expires in 10 minutes.
               </p>
 
