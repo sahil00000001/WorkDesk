@@ -1,3 +1,37 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  PROFILE PAGE  ·  WorkDesk Employee Portal
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *  Displays the authenticated employee's full profile as returned by the
+ *  backend. All data is live — no hardcoded values.
+ *
+ *  Live API call
+ *  ─────────────
+ *  GET /api/auth/me  (requires Authorization: Bearer <accessToken>)
+ *    Returns the complete User object including:
+ *      id, employeeId, email, firstName, lastName, role, designation,
+ *      phoneNumber, joiningDate, address, profilePhotoUrl, isActive,
+ *      department { id, name }
+ *
+ *  Loading states
+ *  ──────────────
+ *  isLoading  →  full-page spinner shown while fetching
+ *  isError    →  error banner shown if the request fails (e.g. token expired)
+ *  data       →  profile header + two info cards rendered on success
+ *
+ *  Profile header
+ *  ──────────────
+ *  Gradient banner with avatar initials (firstName[0] + lastName[0]),
+ *  full name, designation, employeeId badge, and active/inactive status.
+ *
+ *  Info cards
+ *  ──────────
+ *  Personal  : email · phone · address · joining date
+ *  Work      : employee ID · department · role · designation
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 'use client'
 
 import { motion } from 'framer-motion'

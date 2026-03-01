@@ -1,3 +1,32 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  LOGIN PAGE  ·  WorkDesk Employee Portal
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *  Passwordless OTP authentication — 2-step flow:
+ *
+ *  Step 1 — Email
+ *    User enters their work email address.
+ *    Frontend calls POST /api/auth/login  →  backend generates a 6-digit OTP,
+ *    stores it in the DB with a 10-minute expiry, and emails it to the user.
+ *    The backend always returns 200 regardless of whether the email is
+ *    registered (prevents user enumeration attacks).
+ *
+ *  Step 2 — OTP
+ *    User enters the 6-digit code from their email.
+ *    Frontend calls POST /api/auth/verify-otp  →  on success the backend
+ *    returns { user, accessToken, refreshToken }.
+ *    Tokens and user are stored in authStore (persisted to localStorage).
+ *    User is redirected to /dashboard.
+ *
+ *  Error handling
+ *  ──────────────
+ *  HTTP 500  →  "Email service unavailable" (SMTP misconfigured on backend)
+ *  HTTP 401  →  OTP is wrong, expired, or already used
+ *  Network   →  Generic fallback message
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 'use client'
 
 import { useState } from 'react'
@@ -31,8 +60,11 @@ export default function LoginPage() {
       toast.success('OTP sent! Check your email.')
       setStep('otp')
     } catch (error: any) {
+      const status = error.response?.status
       const message =
-        error.response?.data?.error?.message || 'Failed to send OTP. Try again.'
+        status === 500
+          ? 'Email service is unavailable. Contact your administrator.'
+          : error.response?.data?.error?.message || 'Failed to send OTP. Try again.'
       toast.error(message)
     } finally {
       setIsLoading(false)

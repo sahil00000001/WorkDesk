@@ -1,3 +1,35 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  ATTENDANCE PAGE  ·  WorkDesk Employee Portal
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *  Full attendance tracking view with a live clock and check-in/check-out
+ *  actions. Dedicated page for the employee to manage their daily attendance.
+ *
+ *  Live API calls
+ *  ──────────────
+ *  GET  /api/attendance/today
+ *    Polls today's attendance record on mount. Returns null if not yet
+ *    checked in, or the full Attendance object if a record exists.
+ *
+ *  POST /api/attendance/check-in
+ *    Marks the employee as present. Backend records the exact server-side
+ *    timestamp. Status is set to LATE if check-in is after 09:30 AM.
+ *    Error codes: 409 ALREADY_CHECKED_IN
+ *
+ *  POST /api/attendance/check-out
+ *    Stamps check-out time. Backend calculates workHours automatically
+ *    as (checkOutTime - checkInTime) in fractional hours.
+ *    Error codes: 400 NOT_CHECKED_IN · 409 ALREADY_CHECKED_OUT
+ *
+ *  Live clock
+ *  ──────────
+ *  setInterval ticks every 1 second to update currentTime state.
+ *  While checked in but not yet checked out, elapsed work hours are
+ *  calculated in real time from (now - checkInTime).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 'use client'
 
 import { useState, useEffect } from 'react'

@@ -1,3 +1,39 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  LEAVES PAGE  ·  WorkDesk Employee Portal
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *  Leave management for employees — apply for leave, track application
+ *  status, and filter history by PENDING / APPROVED / REJECTED.
+ *
+ *  Live API calls
+ *  ──────────────
+ *  GET  /api/leave-types
+ *    Fetches all active leave types (Annual, Casual, Sick, Maternity…)
+ *    used to populate the leave type dropdown in the application form.
+ *
+ *  GET  /api/leaves
+ *    Fetches the current employee's full leave history sorted newest first.
+ *    Each record includes the leaveType object, status, dates, and reason.
+ *
+ *  POST /api/leaves
+ *    Submits a new leave application.
+ *    Payload: { leaveTypeId, startDate, endDate, reason }
+ *    Validation: endDate >= startDate · reason 5–500 chars · valid UUID
+ *    Error codes: 409 LEAVE_OVERLAP (dates clash with existing leave)
+ *
+ *  Form validation
+ *  ───────────────
+ *  react-hook-form + Zod schema validates the form client-side before the
+ *  API call. Calculated days are derived from (endDate - startDate + 1).
+ *
+ *  Status filter
+ *  ─────────────
+ *  ALL · PENDING · APPROVED · REJECTED tabs filter the leave list locally
+ *  without re-fetching from the server.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 'use client'
 
 import { useState } from 'react'

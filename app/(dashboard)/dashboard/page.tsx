@@ -1,3 +1,35 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  DASHBOARD PAGE  ·  WorkDesk Employee Portal
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *  Landing page after login. Gives the employee a quick snapshot of:
+ *    • Company-wide stats  (static display — HR/Admin API not yet built)
+ *    • Personal attendance widget with live check-in / check-out
+ *    • Latest company announcements (static — announcements API upcoming)
+ *
+ *  Live API calls
+ *  ──────────────
+ *  GET  /api/attendance/today
+ *    Fetches the current employee's attendance record for today.
+ *    Drives the attendance card state (not checked in / checked in / day done).
+ *
+ *  POST /api/attendance/check-in
+ *    Creates today's attendance record. Returns 409 if already checked in.
+ *    Backend auto-detects late arrival (after 09:30 AM → status: LATE).
+ *
+ *  POST /api/attendance/check-out
+ *    Stamps check-out time and calculates workHours.
+ *    Returns 400 if not checked in, 409 if already checked out.
+ *
+ *  State management
+ *  ────────────────
+ *  React Query manages all server state. Mutations call
+ *  queryClient.invalidateQueries(['attendance']) on success so the UI
+ *  re-fetches and reflects the updated attendance record immediately.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 'use client'
 
 import { motion } from 'framer-motion'

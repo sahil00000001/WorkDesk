@@ -1,3 +1,33 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  DASHBOARD LAYOUT  ·  WorkDesk Employee Portal
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *  Wraps every page under /dashboard, /attendance, /leaves, /profile, etc.
+ *  Renders the fixed sidebar, top navbar, and the animated main content area.
+ *
+ *  Auth guard
+ *  ──────────
+ *  On mount the layout checks isAuthenticated from authStore.
+ *  If the user is not logged in they are immediately redirected to /login.
+ *  This prevents any dashboard page from rendering unauthenticated content.
+ *
+ *  Sidebar navigation
+ *  ──────────────────
+ *  navItems array drives all sidebar links.
+ *  The active route is highlighted with a framer-motion shared layout animation
+ *  (layoutId="activeTab") for a smooth sliding indicator.
+ *
+ *  Logout flow
+ *  ───────────
+ *  1. Calls POST /api/auth/logout with the stored refreshToken to invalidate
+ *     it server-side (prevents reuse even if the token is stolen).
+ *  2. Clears authStore (removes user, token, refreshToken from localStorage).
+ *  3. Redirects to /login.
+ *  API failure is silently caught — local logout still proceeds regardless.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 'use client'
 
 import { useEffect } from 'react'
