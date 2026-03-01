@@ -1,9 +1,22 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Users, Clock, Calendar, TrendingUp, CheckCircle, XCircle } from 'lucide-react'
+import { Users, Clock, Calendar, TrendingUp, CheckCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import apiClient from '@/lib/api/client'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
+
+interface Attendance {
+  id: string
+  date: string
+  checkInTime: string | null
+  checkOutTime: string | null
+  workHours: number | null
+  status: string
+}
 
 const stats = [
   {
@@ -40,23 +53,62 @@ const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 },
   },
 }
 
 const staggerItem = {
   hidden: { y: 20, opacity: 0 },
-  visible: {
-    y: 0,
-    opacity: 1,
-    transition: { duration: 0.4 },
-  },
+  visible: { y: 0, opacity: 1, transition: { duration: 0.4 } },
 }
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient()
+
+  // Fetch today's attendance
+  const { data: todayAttendance, isLoading: loadingAttendance } = useQuery({
+    queryKey: ['attendance', 'today'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/attendance/today')
+      return response.data.data as Attendance | null
+    },
+  })
+
+  // Check-in mutation
+  const checkInMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.post('/api/attendance/check-in')
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Checked in successfully!')
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.error?.message || 'Failed to check in'
+      toast.error(message)
+    },
+  })
+
+  // Check-out mutation
+  const checkOutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.post('/api/attendance/check-out')
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Checked out successfully!')
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+    onError: (error: any) => {
+      const message = error.response?.data?.error?.message || 'Failed to check out'
+      toast.error(message)
+    },
+  })
+
+  const hasCheckedIn = !!todayAttendance?.checkInTime
+  const hasCheckedOut = !!todayAttendance?.checkOutTime
+
   return (
     <div>
       <motion.div
@@ -98,7 +150,15 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Mark Attendance</CardTitle>
-              <CardDescription>Check in for today</CardDescription>
+              <CardDescription>
+                {loadingAttendance
+                  ? 'Loading...'
+                  : hasCheckedIn && hasCheckedOut
+                  ? `Checked in at ${format(new Date(todayAttendance!.checkInTime!), 'hh:mm a')} · Checked out at ${format(new Date(todayAttendance!.checkOutTime!), 'hh:mm a')}`
+                  : hasCheckedIn
+                  ? `Checked in at ${format(new Date(todayAttendance!.checkInTime!), 'hh:mm a')}`
+                  : 'You have not checked in yet'}
+              </CardDescription>
             </CardHeader>
 
             <div className="mb-6 text-center">
@@ -113,9 +173,39 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <Button variant="primary" size="lg" className="w-full" icon={<CheckCircle className="h-5 w-5" />}>
-              Check In
-            </Button>
+            {!hasCheckedIn && (
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                icon={<CheckCircle className="h-5 w-5" />}
+                loading={checkInMutation.isPending || loadingAttendance}
+                onClick={() => checkInMutation.mutate()}
+              >
+                Check In
+              </Button>
+            )}
+
+            {hasCheckedIn && !hasCheckedOut && (
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                icon={<CheckCircle className="h-5 w-5" />}
+                loading={checkOutMutation.isPending}
+                onClick={() => checkOutMutation.mutate()}
+              >
+                Check Out
+              </Button>
+            )}
+
+            {hasCheckedIn && hasCheckedOut && (
+              <div className="rounded-lg bg-green-50 border border-green-200 p-3 text-center">
+                <p className="text-sm font-medium text-green-800">
+                  Day complete — {todayAttendance?.workHours?.toFixed(2) ?? '0'}h worked
+                </p>
+              </div>
+            )}
           </Card>
         </motion.div>
 

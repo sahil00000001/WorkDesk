@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils/cn'
 import { useAuthStore } from '@/lib/store/authStore'
 import { Button } from '@/components/ui/button'
+import apiClient from '@/lib/api/client'
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
@@ -47,9 +48,18 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, router])
 
-  const handleLogout = () => {
-    logout()
-    router.push('/login')
+  const handleLogout = async () => {
+    const { refreshToken } = useAuthStore.getState()
+    try {
+      if (refreshToken) {
+        await apiClient.post('/api/auth/logout', { refreshToken })
+      }
+    } catch {
+      // Proceed with local logout regardless
+    } finally {
+      logout()
+      router.push('/login')
+    }
   }
 
   if (!isAuthenticated) {
